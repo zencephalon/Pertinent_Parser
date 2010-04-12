@@ -1,100 +1,86 @@
+# PertinentParser is a Ruby library for parsing and text transformations.
+#
+# Example usage:
+#
+#   require "pertinent_parser"
+#   t = PertinentParser::html("<p>Hanlon's Razor: <i><em>never</em> attribute to malice that which can be adequately explained by stupidity</i>. Occam's Razor: <i>entia non sunt multiplicanda praeter necessitatem</i>.</p>")
+#   t.text #=> "Hanlon's Razor: never attribute to malice that which can be adequately explained by stupidity. Occam's Razor: entia non sunt multiplicanda praeter necessitatem."
+#   t.add("never attribute to malice that which can be adequately explained by stupidity.", "<q>") #=> true
+#   t.add("entia non sunt multiplicanda praeter necessitatem.", "<q>") #=> true
+#   t.add("War doesn't determine who is right, but rather who is wrong.", "<q>") #=> false
+#   t.apply #=> "<p>Hanlon's Razor: <q><i><em>never</em> attribute to malice that which can be adequately explained by stupidity</i>.</q> Occam's Razor: <q><i>entia non sunt multiplicanda praeter necessitatem</i>.</q></p>"
+#   t.add("Hanlon") {"Cynic"} #=> true
+#   t.add("never") {"always"} #=> true
+#   t.apply #=> "<p>Cynic's Razor: <q><i><em>always</em> attribute to malice that which can be adequately explained by stupidity</i>.</q> Occam's Razor: <i>entia non sunt multiplicanda praeter necessitatem</i>alway<q><i>entia non sunt multiplicanda praeter necessitatem</i>.</q></p>"
+#
+# TODO: memoize
 module PertinentParser
+    # A rule holds a target (the text to search for) a position (which occurence of the target in the text it should change) and a function which will be applied to the target text. It also holds a list of children. A child's target is by definition inside the parent's target, and a child will be before the parent.
     class Rule
-        attr_accessor :function, :target, :position
+        attr_accessor :function, :target, :position, :children
 
-        def initialize target, position = 1, context, &function
+        # For internal use. 
+        def initialize target, position = 1, &function
             @target = target
             @function = function
             @position = position
-            @context = context
+            @children = []
         end
 
+        # Returns the size of the target
         def size
             @target.size
         end
 
-        def r_match words, depth
-            if words.empty?
-                return [""]
-            end
-            if words.take(size) == @target
-                if depth == 1
-                    return words.take(size) + Array.new(words.size - size, "")
-                else
-                    return Array.new(size, "") + r_match(words.drop(size), depth - 1)
-                end
-            else
-                return [""] + r_match(words.drop(1), depth)
-            end
-        end
 
-        def match
-            r_match @context, @position
-        end
-
-        def r_range words, depth
-            if words.empty?
-                return -1
-            end
-            if words.take(size) == @target
-                if depth == 1
-                    return 0
-                else
-                    return size + r_range(words.drop(size), depth - 1)
-                end
-            else
-                return 1 + r_range(words.drop(1), depth)
-            end
-        end
-
-        def range
-            i = r_range(@context, @position)
+        # Returns a range.
+        def range words
+            i = range_i(@target, words, @position)
             (i...i + size)
         end
 
-        def apply
-            c = @context.dup
-            c[range] = @function.call(@target.join(" ")).split
-            c
-        end
-        def apply_s s
-            s[range] = @function.call(@target.join(" ")).split
-        end
 
-        def + rule
-            rule.context = @context
-
-            original_matched = match
-            new_matched = rule.match
-
-            intersection = inter(original_matched, new_matched)
-
-            if intersection.join == ""
-                return [self, rule]
-            else
-                inner_target = intersection.reject {|s| s == ""}
-                r_inner = Rule.new(inner_target, find_position(intersection, @context), @context, &@function)
-                r_inner.apply_s(@context)
-                r_inner.apply_s(@target)
-                difference = diff(original_matched, intersection) 
-                if difference.join != ""
-                    out_target = difference.reject {|s| s == ""} 
-                    r_outer = Rule.new(out_target, find_position(difference, @context), @context, &@function)
-                end
+        def apply s
+            t, st = @target.dup, s.dup
+            @children.each do |child|
+                @target = child.apply @target
+                st = child.apply st
             end
+            st[range(st)] = @function.call(@target.join).split("")
+            @target = t
+            st
+        end
 
-          #  else
-          #      inner_target = intersection.reject {|s| s == ""}
-          #      new_context = rule.apply
-          #      r_inner = Rule.new(inner_target, find_position(intersection, @context), @context, &@function)
-          #      difference = diff(original_matched, intersection) 
-          #      if difference.join != ""
-          #          out_target = difference.reject {|s| s == ""} 
-          #          r_outer = Rule.new(out_target, find_position(difference, @context), @context, &@function)
-          #          return [r_inner, r_outer]
-          #      end
-          #      return [r_inner]
-          #  end
+        def + rule, context
+            this_match = range(context).to_a
+            that_match = rule.range(context).to_a
+            intersection = this_match & that_match
+            #first case, the rule is entirely inside
+            if intersection.empty?
+                [self, rule]
+            elsif intersection == that_match
+                if @children.empty?
+                    @children << rule
+                else
+                    children = []
+                    @children.each do |child|
+                        children += child.+(rule, context)
+                    end
+                    @children = children.uniq
+                end
+                [self]
+            elsif intersection == this_match
+                rule.+(self, context)
+                [rule]
+            else
+                inner_target = @target[(intersection.first..intersection.last)] 
+                r_in = Rule.new(inner_target, find_position(inner_target, intersection, context), &@function)
+                rule.+(r_in, context)
+                difference = this_match - that_match
+                outer_target = @target[(difference.first..difference.last)] 
+                r_out = Rule.new(outer_target, find_position(outer_target, difference, context), &@function)
+                [rule, r_out]
+            end
         end
     end
 
@@ -104,39 +90,96 @@ module PertinentParser
             @input = input
             @rules = []
         end
-        def add_rule target, position=1, &function 
-            r = Rule.new(target, position, @input, &function)
-            rules = [r]
-            @rules.each do |rule|
-                rules += (rule + r)
+        def add string, tag="", pos=1, &func
+            if func.nil?
+                func = proc do |s|
+                    tag + s + "</" + tag[/<(\S*)/][1] + ">"
+                end
             end
-            @rules = rules
+            add_rule(string.split(""), pos, &func)
+        end
+        def add_rule target, position=1, &function 
+            r = Rule.new(target, position, &function)
+            return false if r.range(@input).end > @input.size
+            if @rules.empty?
+                @rules << r
+            else
+                rules = []
+                @rules.each do |rule|
+                    rules += rule.+(r, @input)
+                end
+                @rules = rules.uniq
+            end
+            true
         end
         def apply
             c = @input.dup
-            @rules.each {|r| r.apply_s(c)}
-            c
+            @rules.each {|r| c = r.apply(c)}
+            c.join
+        end
+        def text
+            @input.join
         end
     end
 
-    def find_position target, words
+    def r_range target, words, depth
+        if words.empty?
+            -1
+        elsif words.take(size) == target
+            depth == 1 ? 0 : size + r_range(target, words.drop(size), depth - 1)
+        else
+            1 + r_range(target, words.drop(1), depth)
+        end
+    end
+    def range_i target, words, i
+        a = r_range(target, words, i)
+        (a...a + size)
+    end
+    def find_position target, range, words
         i = 1
-        r = Rule.new(target.reject {|s| s == ""}, 1, words)
-        while (m = r.r_match(words, i)).join != ""
-            return i if target == m
+        while (m = range_i(target, words, i)).end <= words.size
+            return i if range == m.to_a
             i += 1
+        end
+    end
+
+    def html(input)
+       t = Transform.new(extract_text(input))
+       html_transform(t, input)
+    end
+
+    def html_transform(t, input)
+        #left, open_tag, contents, close_tag, right = 
+        matched = match(input)
+        if matched[1] == ""
+            matched[0]
+        else
+            p = proc {|s| "#{matched[1]}#{s}#{matched[3]}"}
+            s = html_transform(t, matched[2])
+            t.add_rule(s.split(""), &p)
+            matched[0] | s | html_transform(t, matched[4])
+        end
+        t
+    end
+
+    def extract_text(input)
+        if (matched = match(input))[1] == ""
+            matched[0] == "" ? [] : matched[0].split("")
+        else
+            matched[0].split("") | extract_text(matched[2]) | extract_text(matched[4])
+        end
+    end
+
+    def match(html=@html)
+        first, open_tag, right = html.partition(/<.*?>/)
+        score, contents, close_tag = 1, "", ""
+        while right =~ /<.*?>/ 
+            contents << close_tag
+            left, close_tag, right = right.partition(/<.*?>/)
+            contents << left
+            score += ((close_tag =~ /<\/.*?>/) ? -1 : 1)
+            break if score == 0
         end 
-    end
-
-    def inter a, b
-        a.each_index.inject([]) do |c, i|
-            c << (a[i] == b[i] ? a[i] : "")
-        end
-    end
-
-    def diff a,b
-        a.each_index.inject([]) do |c, i|
-            c << (a[i] != b[i] ? a[i] : "")
-        end
+        [first, open_tag, contents, close_tag, right]
     end
 end
