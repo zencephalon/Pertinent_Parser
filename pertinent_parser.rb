@@ -27,18 +27,10 @@ module PertinentParser
             @children = []
         end
 
-        # Returns the size of the target
-        def size
-            @target.size
-        end
-
-
-        # Returns a range.
+        # Returns the range of the target within the context
         def range words
-            i = range_i(@target, words, @position)
-            (i...i + size)
+            i = PertinentParser::range_i(@target, words, @position)
         end
-
 
         def apply s
             t, st = @target.dup, s.dup
@@ -122,20 +114,20 @@ module PertinentParser
         end
     end
 
-    def r_range target, words, depth
+    def self.r_range target, words, depth
         if words.empty?
             -1
-        elsif words.take(size) == target
-            depth == 1 ? 0 : size + r_range(target, words.drop(size), depth - 1)
+        elsif words.take(target.size) == target
+            depth == 1 ? 0 : target.size + r_range(target, words.drop(target.size), depth - 1)
         else
             1 + r_range(target, words.drop(1), depth)
         end
     end
-    def range_i target, words, i
+    def self.range_i target, words, i
         a = r_range(target, words, i)
-        (a...a + size)
+        (a...a + target.size)
     end
-    def find_position target, range, words
+    def self.find_position target, range, words
         i = 1
         while (m = range_i(target, words, i)).end <= words.size
             return i if range == m.to_a
@@ -143,12 +135,13 @@ module PertinentParser
         end
     end
 
-    def html(input)
+    def self.html(input)
        t = Transform.new(extract_text(input))
        html_transform(t, input)
+       t
     end
 
-    def html_transform(t, input)
+    def self.html_transform(t, input)
         #left, open_tag, contents, close_tag, right = 
         matched = match(input)
         if matched[1] == ""
@@ -157,20 +150,19 @@ module PertinentParser
             p = proc {|s| "#{matched[1]}#{s}#{matched[3]}"}
             s = html_transform(t, matched[2])
             t.add_rule(s.split(""), &p)
-            matched[0] | s | html_transform(t, matched[4])
+            matched[0] + s + html_transform(t, matched[4])
         end
-        t
     end
 
-    def extract_text(input)
+    def self.extract_text(input)
         if (matched = match(input))[1] == ""
             matched[0] == "" ? [] : matched[0].split("")
         else
-            matched[0].split("") | extract_text(matched[2]) | extract_text(matched[4])
+            matched[0].split("") + extract_text(matched[2]) + extract_text(matched[4])
         end
     end
 
-    def match(html=@html)
+    def self.match(html=@html)
         first, open_tag, right = html.partition(/<.*?>/)
         score, contents, close_tag = 1, "", ""
         while right =~ /<.*?>/ 
