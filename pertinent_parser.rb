@@ -53,54 +53,41 @@ module PertinentParser
             that_match = rule.range(context).to_a
             intersection = this_match & that_match
 
-            #FIXME: Adding rules with the whole children thing is wrong, you get duplicates. Make intersection.empty? return nil instead, and check status of returned shit. fuck.
-
-            # Case: the rules do not intersect at all. They can both be applied safely separately, as their
-            # target areas are entirely distinct.
-            if intersection.empty?
-                #[self, rule]
-                rule
-            # Case: the second rule is entirely inside the first. It will become a child of the first rule,
-            # but first it must be recursively added to the children of the first rule.
-            elsif intersection == that_match
+            # Case: 
+            case intersection
+            when []
+                return :outside
+            when that_match
                 if @children.empty?
                     @children << rule
-                    return true
                 else
+                    status, partial_rule = nil, nil
                     @children.each do |child|
-                        res = child.+(rule, context)
-                        if res != rule
-                           if res == true
-                               return true
-                           elsif res == false
-                               @children.delete(child)
-                           elsif res.is_a?(Array)
-                               @children.delete(child)
-                               rule = res[1]
-                           else
-                               rule = res
-                           end
-                        end
+                       status, partial_rule = child.+(rule, context)
+                       break unless status == :outside
                     end
-                    @children << rule
-                    return true
+                    if status == :swap or status == :partial
+                       kids = @children
+                       @children = [rule]
+                       kids.each do |kid|
+                           rule.+(kid, context)
+                       end
+                       self.+(partial_rule, context) if partial_rule
+                    elsif status == :outside
+                       @children << rule
+                    end
                 end
-            # Case: the first rule is entirely inside the first. This is symmetrical with the previous case.
-            elsif intersection == this_match
-                rule.+(self, context)
-                return false
-            # Case: the two rules have non-trivial intersection. The part of the first rule inside the second
-            # rule is added as a child to the second rule. The part of the first rule outside the second rule
-            # may be safely applied on its own.
+                return :inside
+            when this_match
+                return :swap
             else
                 inner_target = context[(intersection.first..intersection.last)] 
-                puts @target
                 r_in = Rule.new(inner_target, PertinentParser::find_position(inner_target, intersection, context), &self.function)
                 rule.+(r_in, context)
-                difference = that_match - this_match
+                difference = this_match - that_match
                 outer_target = context[(difference.first..difference.last)] 
                 r_out = Rule.new(outer_target, PertinentParser::find_position(outer_target, difference, context), &self.function)
-                [false, r_out]
+                return :partial, r_out
             end
         end
     end
