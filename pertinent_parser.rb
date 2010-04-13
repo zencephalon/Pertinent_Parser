@@ -53,38 +53,54 @@ module PertinentParser
             that_match = rule.range(context).to_a
             intersection = this_match & that_match
 
+            #FIXME: Adding rules with the whole children thing is wrong, you get duplicates. Make intersection.empty? return nil instead, and check status of returned shit. fuck.
+
             # Case: the rules do not intersect at all. They can both be applied safely separately, as their
             # target areas are entirely distinct.
             if intersection.empty?
-                [self, rule]
+                #[self, rule]
+                rule
             # Case: the second rule is entirely inside the first. It will become a child of the first rule,
             # but first it must be recursively added to the children of the first rule.
             elsif intersection == that_match
                 if @children.empty?
                     @children << rule
+                    return true
                 else
-                    children = []
                     @children.each do |child|
-                        children += child.+(rule, context)
+                        res = child.+(rule, context)
+                        if res != rule
+                           if res == true
+                               return true
+                           elsif res == false
+                               @children.delete(child)
+                           elsif res.is_a?(Array)
+                               @children.delete(child)
+                               rule = res[1]
+                           else
+                               rule = res
+                           end
+                        end
                     end
-                    @children = children.uniq
+                    @children << rule
+                    return true
                 end
-                [self]
             # Case: the first rule is entirely inside the first. This is symmetrical with the previous case.
             elsif intersection == this_match
                 rule.+(self, context)
-                [rule]
+                return false
             # Case: the two rules have non-trivial intersection. The part of the first rule inside the second
             # rule is added as a child to the second rule. The part of the first rule outside the second rule
             # may be safely applied on its own.
             else
-                inner_target = @target[(intersection.first..intersection.last)] 
-                r_in = Rule.new(inner_target, find_position(inner_target, intersection, context), &@function)
+                inner_target = context[(intersection.first..intersection.last)] 
+                puts @target
+                r_in = Rule.new(inner_target, PertinentParser::find_position(inner_target, intersection, context), &self.function)
                 rule.+(r_in, context)
-                difference = this_match - that_match
-                outer_target = @target[(difference.first..difference.last)] 
-                r_out = Rule.new(outer_target, find_position(outer_target, difference, context), &@function)
-                [rule, r_out]
+                difference = that_match - this_match
+                outer_target = context[(difference.first..difference.last)] 
+                r_out = Rule.new(outer_target, PertinentParser::find_position(outer_target, difference, context), &self.function)
+                [false, r_out]
             end
         end
     end
@@ -94,10 +110,10 @@ module PertinentParser
     # context. This is important in the composition stage of adding 
     # rules.
     class Transform
-        attr_accessor :rules, :input
+        attr_accessor :rule, :input
         def initialize input
             @input = input
-            @rules = []
+            @rule = Rule.new(@input) {|s| s}
         end
 
         # Short-hand method for composing new rules.
@@ -108,7 +124,7 @@ module PertinentParser
         def add string, tag="", pos=1, &func
             if func.nil?
                 func = proc do |s|
-                    tag + s + "</" + tag[/<(\S*)/][1] + ">"
+                    tag + s + "</" + tag.match(/<(\S*)(\s|>)/)[1] + ">"
                 end
             end
             add_rule(string.split(""), pos, &func)
@@ -118,23 +134,14 @@ module PertinentParser
         def add_rule target, position=1, &function 
             r = Rule.new(target, position, &function)
             return false if r.range(@input).end > @input.size
-            if @rules.empty?
-                @rules << r
-            else
-                rules = []
-                @rules.each do |rule|
-                    rules += rule.+(r, @input)
-                end
-                @rules = rules.uniq
-            end
+            @rule.+(r, @input)
             true
         end
 
         # Apply each rule to the input, give the output.
         def apply
             c = @input.dup
-            @rules.each {|r| c = r.apply(c)}
-            c.join
+            @rule.apply(c).join
         end
 
         # Return the input.
@@ -162,10 +169,10 @@ module PertinentParser
 
     # Finds which occurence of target happens in the range in words.
     def self.find_position target, range, words
-        i = 1
-        while (m = range_i(target, words, i)).end <= words.size
-            return i if range == m.to_a
-            i += 1
+        pos = 1
+        while (range_pos = range_i(target, words, pos)).end <= words.size
+            return pos if range == range_pos.to_a
+            pos += 1
         end
     end
 
@@ -173,32 +180,29 @@ module PertinentParser
     # will be stripped down plain text, and the rules will be such that
     # applying the transform will return to the original HTML.
     def self.html(input)
-       t = Transform.new(extract_text(input))
-       html_transform(t, input)
-       t
+       transformation = Transform.new(extract_text(input))
+       html_transform(transformation, input)
+       transformation
     end
 
     # Extract rules from HTML tag occurences.
     def self.html_transform(t, input)
         #left, open_tag, contents, close_tag, right = 
-        matched = match(input)
-        if matched[1] == ""
-            matched[0]
+        left, open_tag, contents, close_tag, right = match(input)
+        if open_tag.empty?
+            left
         else
-            p = proc {|s| "#{matched[1]}#{s}#{matched[3]}"}
-            s = html_transform(t, matched[2])
+            p = proc {|s| "#{open_tag}#{s}#{close_tag}"}
+            s = html_transform(t, contents)
             t.add_rule(s.split(""), &p)
-            matched[0] + s + html_transform(t, matched[4])
+            left + s + html_transform(t, right)
         end
     end
 
     # Return the plain text from an HTML document.
     def self.extract_text(input)
-        if (matched = match(input))[1] == ""
-            matched[0] == "" ? [] : matched[0].split("")
-        else
-            matched[0].split("") + extract_text(matched[2]) + extract_text(matched[4])
-        end
+        left, tag, middle, _, right = match(input)
+            (tag.empty? and left.empty?) ? [] : left.split("") + extract_text(middle) + extract_text(right)
     end
 
     # Match a pair of tags.
