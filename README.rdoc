@@ -1,0 +1,16 @@
+PertinentParser is a Ruby library for parsing and text transformations.
+
+Example usage:
+
+  require "pertinent_parser"
+  t = PertinentParser::html("<p>Hanlon's Razor: <i><em>never</em> attribute to malice that which can be adequately explained by stupidity</i>. Occam's Razor: <i>entia non sunt multiplicanda praeter necessitatem</i>.</p>")
+  t.text #=> "Hanlon's Razor: never attribute to malice that which can be adequately explained by stupidity. Occam's Razor: entia non sunt multiplicanda praeter necessitatem."
+  t.add("never attribute to malice that which can be adequately explained by stupidity.", "<q>") #=> true
+  t.add("entia non sunt multiplicanda praeter necessitatem.", "<q>") #=> true
+  t.add("War doesn't determine who is right, but rather who is wrong.", "<q>") #=> false
+  t.apply #=> "<p>Hanlon's Razor: <q><i><em>never</em> attribute to malice that which can be adequately explained by stupidity</i>.</q> Occam's Razor: <q><i>entia non sunt multiplicanda praeter necessitatem</i>.</q></p>"
+  t.add("Hanlon") {"Cynic"} #=> true
+  t.add("never") {"always"} #=> true
+  t.apply #=> "<p>Cynic's Razor: <q><i><em>always</em> attribute to malice that which can be adequately explained by stupidity</i>.</q> Occam's Razor: <i>entia non sunt multiplicanda praeter necessitatem</i>alway<q><i>entia non sunt multiplicanda praeter necessitatem</i>.</q></p>"
+
+
