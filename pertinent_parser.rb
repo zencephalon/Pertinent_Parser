@@ -10,54 +10,44 @@ class Rule
     end
     def add(new_rule)
         intersection = @range & new_rule.range
-        if intersection === new_rule.range
-            $i += 1
-            puts "#{'--'*$i}#{@name}(#{@range[0]}..#{@range[-1]}) contains #{new_rule.name}(#{new_rule.range[0]}..#{new_rule.range[-1]})"
-            if @children.empty?
-                @children << new_rule
-                new_rule.parent = self
-            else
-                result = new_rule
+        if intersection == new_rule.range
+            contain = []
+            input = new_rule
+            unless @children.empty?
                 @children.each do |child|
-                   result = child.add(result)
-                   break if result == :successful
-                end
-                if result != :successful
-                    @children << result
-                    result.parent = self
-                end
-            end
-            $i -= 1
-            return :successful
-        elsif intersection === @range
-            $i += 1
-            puts "#{'--'*$i}#{@name}(#{@range[0]}..#{@range[-1]}) is inside #{new_rule.name}(#{new_rule.range[0]}..#{new_rule.range[-1]})"
-            if @parent.nil?
-                new_rule.add self
-                return new_rule
-            else
-                children = @parent.children
-                @parent.children = [new_rule]
-                children.each do |child|
-                    result = new_rule.add child
-                    if result != :successful
-                        @parent.children << result
+                    result = child.add(input)
+                    if result == :inside
+                        return :inside
+                    elsif result == :contain
+                        contain << child
+                    elsif result == :outside
+                        # do nothing
+                    elsif result.is_a?(Rule)
+                        input = result
                     end
                 end
             end
-            $i -= 1
-            return :successful
+            @children -= contain
+            contain.each do |child|
+                input.add child
+            end
+            @children << input
+            return :inside
         elsif intersection.empty?
-            $i += 1
-            puts "#{'--'*$i}#{@name}(#{@range[0]}..#{@range[-1]}) doesn't overlap with #{new_rule.name}(#{new_rule.range[0]}..#{new_rule.range[-1]})"
-            $i -= 1
-            return new_rule
+            return :outside
+        elsif intersection == @range
+            if @parent.nil?
+                children = new_rule.children
+                new_rule.children = [self]
+                children.each do |child|
+                    new_rule.add child
+                end
+                return new_rule
+            end
+            return :contain
         else
-            $i += 1
-            puts "#{'--'*$i}#{@name}(#{@range[0]}..#{@range[-1]}) partially overlaps with #{new_rule.name}(#{new_rule.range[0]}..#{new_rule.range[-1]})"
             difference = new_rule.range - intersection
-            self.add Rule.new(intersection, new_rule.name)
-            $i -= 1
+            self.add(Rule.new(intersection, new_rule.name))
             return Rule.new(difference, new_rule.name)
         end
     end
