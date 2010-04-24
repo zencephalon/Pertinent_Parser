@@ -13,18 +13,16 @@ class Rule
         if intersection == new_rule.range
             contain = []
             input = new_rule
-            unless @children.empty?
-                @children.each do |child|
-                    result = child.add(input)
-                    if result == :inside
-                        return :inside
-                    elsif result == :contain
-                        contain << child
-                    elsif result == :outside
-                        # do nothing
-                    elsif result.is_a?(Rule)
-                        input = result
-                    end
+            @children.each do |child|
+                result = child.add(input)
+                if result == :inside
+                    return :inside
+                elsif result == :contain
+                    contain << child
+                elsif result == :outside
+                    # do nothing
+                elsif result.is_a?(Rule)
+                    input = result
                 end
             end
             @children -= contain
