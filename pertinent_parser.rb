@@ -1,4 +1,39 @@
-$i = 0
+require "hpricot"
+
+def range_from_specification context, target, number
+    count, position = 1, 0
+    while (match = context.match(target, position)) do
+        return match.offset 0 if count == number
+        position = match.offset(0)[1]
+        count += 1
+    end
+end
+
+class Hpricot::Elem
+    def stag
+        "<#{name}#{attributes_as_html}" +
+        ((empty? and not etag) ? " /" : "") +
+        ">"
+    end
+end
+
+def extract(html)
+    doc = Hpricot(html)
+    doc.traverse_all_element do |elem|
+        unless elem.html.empty?
+            tags = elem.to_html.gsub(elem.html, "")
+            puts tags
+        end
+    end
+end
+
+class Transform
+    attr_accessor :type, :target, :function
+    def initialize target, &function
+        @target = target
+        @function = function
+    end
+end
 
 class Rule
     attr_accessor :range, :name, :children, :parent
