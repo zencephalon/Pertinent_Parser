@@ -58,6 +58,7 @@ end
 
 class Transform
     attr_accessor :type, :property
+    attr_accessor :transformed, :original
     def initialize type, property
         @type, @property = type, property
     end
@@ -69,7 +70,9 @@ class Transform
         end
     end
     def apply(s)
-        if @type == :replacement
+        if @type == :identity
+            return s
+        elsif @type == :replacement
             return @property
         elsif @type == :wrap
             return @property[0] + s + @property[1]
@@ -82,28 +85,35 @@ class Rule
     attr_accessor :target, :number
     attr_accessor :context
     attr_accessor :transform
-#    def initialize(range, name, children=[], parent=nil)
-#        @range = range.to_a
-#        @name = name
-#        @children = children
-#        @parent = parent
-#    end
-    def initialize(context, name, target, number)
-        @context = context
-        @target = target
-        @number = number
-        @name = name
-        @children = []
-        @parent = nil
-    end
-    def range
-        (range_from_specification @context, @target, @number).to_a
+    attr_accessor :range
+    def initialize(range, transform=nil, children=[], parent=nil)
+        @range = range.to_a
+        @children = children
+        @parent = parent
+        @transform = transform
     end
     def <=>(r)
         range.first <=> r.range.first
     end
-    def apply
-
+    def apply_recur(s, offset=0)
+        # = str.dup
+        @children.each do |child|
+            offset += child.apply_recur(s, offset)
+        end
+        if @children.empty?
+            puts "#{@range.first+offset}:#{@range.last+offset}"
+            transform = @transform.apply(s[@range.first+offset..@range.last+offset]) 
+            s[@range.first+offset..@range.last+offset] = transform
+        else
+            transform = @transform.apply(s[@range.first..@range.last + offset]) 
+            s[@range.first..@range.last + offset] = transform
+        end
+        return (transform.size - range.size)
+    end
+    def apply(str)
+        s = str.dup
+        apply_recur(s)
+        return s
     end
     def add(new_rule)
         intersection = range & new_rule.range
@@ -127,7 +137,7 @@ class Rule
                 input.add child
             end
             @children << input
-            #@children.sort!
+            @children.sort!
             return :inside
         elsif intersection.empty?
             return :outside
@@ -143,16 +153,20 @@ class Rule
             return :contain
         else
             difference = new_rule.range - intersection
-            target, number = specification_from_range(intersection.first..intersection.last)
-            self.add(Rule.new(@context, new_rule.name, target, number))
-            target, number = specification_from_range(difference.first..difference.last)
-            return Rule.new(@context, new_rule.name, target, number)
+            transforms = new_rule.transform.split(difference.size)
+            if intersection.first < difference.first
+                inter_tran, diff_tran = transforms
+            else
+                diff_tran, inter_tran = transforms
+            end
+            self.add(Rule.new(intersection, inter_tran))
+            return Rule.new(difference, diff_tran)
         end
     end
 end
 
-def rule(context, name, target, number)
-    Rule.new(context, name, target, number)
+def rule(range, transform)
+    Rule.new(range, transform)
 end
 
 def print_rule rule, depth=0
@@ -185,7 +199,7 @@ def display_stack stack, rule
 end
 
 def disp rule
-    display_stack(dispr(rule, (0..rule.context.size-1).to_a), rule)
+    display_stack(dispr(rule, (1..rule.context.size).to_a), rule)
     nil
 end
 
@@ -203,4 +217,30 @@ def merge_stacks a, b
         c[k] = do_a_merge a[k], c[k]
     end
     c
+end
+
+def wrap(context, target, number, tag)
+    range = range_from_specification(context, target, number)
+    transform = Transform.new(:wrap, [tag, tag])
+    r = Rule.new(range, "w", transform)
+end
+
+def replace(context, target, number, replacement)
+    range = range_from_specification(context, target, number)
+    transform = Transform.new(:replacement, replacement)
+    r = Rule.new(range, "w", transform)
+end
+
+class Text < String
+    attr_accessor :rule
+    def apply
+        @rule.apply(self)
+    end
+end
+
+def text(s)
+    r = Rule.new((0..s.size-1), Transform.new(:identity, nil))
+    t = Text.new(s)
+    t.rule = r
+    t
 end
