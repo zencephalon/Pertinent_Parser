@@ -175,56 +175,6 @@ def rule(range, transform)
     Rule.new(range, transform)
 end
 
-def print_rule rule, depth=0
-    puts ("--" * depth) + rule.transform.property[0] + ": " + (rule.range[0]..rule.range[-1]).to_s
-    rule.children.each do |child|
-        print_rule child, depth + 1
-    end
-    nil
-end
-
-def dispr rule, frame=nil, depth=0, stack=nil
-    frame ||= rule.range
-    stack ||= [" " * frame.size]
-    stack[depth] ||= " " * frame.size
-    stack[depth] = do_a_merge(stack[depth], frame.map {|n| rule.range.include?(n) ? rule.name : " "}.join)
-    rule.children.each do |child|
-        stack = merge_stacks(stack, dispr(child, frame, depth + 1, stack))
-    end
-    stack
-end
-
-def display_stack stack, rule
-    #(1..stack[0].size).each do |i|
-    #    print i % 10
-    #end
-    puts rule.context
-    stack.each do |line|
-        puts line
-    end
-end
-
-def disp rule
-    display_stack(dispr(rule, (1..rule.context.size).to_a), rule)
-    nil
-end
-
-def do_a_merge a, b
-    c = ""
-    (0..a.size-1).each do |i|
-        c << (a[i] == " " ? b[i] : a[i])
-    end
-    c
-end
-
-def merge_stacks a, b
-    c = b.dup
-    a.each_index do |k|
-        c[k] = do_a_merge a[k], c[k]
-    end
-    c
-end
-
 def wrap(context, target, number, tag)
     range = range_from_specification(context, target, number)
     wrap_(range, tag)
