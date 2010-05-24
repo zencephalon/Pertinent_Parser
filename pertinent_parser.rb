@@ -51,16 +51,18 @@ end
 def extract(html)
     doc = Hpricot(html)
     d = 0
+    t = text(doc.inner_text)
     doc.traverse_all_element do |elem|
         if elem.text?
-            puts elem.inner_text
+            #puts elem.inner_text
             d += elem.inner_text.size
         else
             #puts elem.stag
+            t + wrap_(d...d+elem.inner_text.size, elem.stag)
             #puts "#{d}..#{d+elem.inner_text.size}"
         end
     end
-    doc.inner_text
+    t
 end
 
 class Transform
@@ -225,6 +227,10 @@ end
 
 def wrap(context, target, number, tag)
     range = range_from_specification(context, target, number)
+    wrap_(range, tag)
+end
+
+def wrap_(range, tag)
     transform = Transform.new(:wrap, [tag, "</"+tag.match(/<(\S*)(\s|>)/)[1]+">" ])
     r = Rule.new(range, transform)
 end
