@@ -19,11 +19,13 @@ end
 
 
 def range_from_specification context, target, number
-    count, position = 1, 0
+    count, position = 0, 0
+    stored = []
     while (match = context.match(target, position)) do
-        return offset_to_r(match.offset 0) if count == number
-        position = match.offset(0)[1]
-        count += 1
+        temp = match.offset 0
+        position += 1; count += 1 if temp != stored
+        return offset_to_r(temp) if count == number
+        stored = temp
     end
 end
 
@@ -44,16 +46,21 @@ class Hpricot::Elem
     end
 end
 
+
+# Better write our own traversal function so that we can screw with the HTML representation the way we like.
 def extract(html)
     doc = Hpricot(html)
+    d = 0
     doc.traverse_all_element do |elem|
-        unless elem.html.empty?
-            tags = elem.to_html.gsub(elem.html, "")
-            puts elem.stag
-            puts elem.etag
-            puts tags
+        if elem.text?
+            puts elem.inner_text
+            d += elem.inner_text.size
+        else
+            #puts elem.stag
+            #puts "#{d}..#{d+elem.inner_text.size}"
         end
     end
+    doc.inner_text
 end
 
 class Transform
@@ -96,24 +103,21 @@ class Rule
         range.first <=> r.range.first
     end
     def apply_recur(s, offset=0)
-        # = str.dup
+        pre = offset
         @children.each do |child|
             offset += child.apply_recur(s, offset)
         end
-        if @children.empty?
-            puts "#{@range.first+offset}:#{@range.last+offset}"
-            transform = @transform.apply(s[@range.first+offset..@range.last+offset]) 
-            s[@range.first+offset..@range.last+offset] = transform
-        else
-            transform = @transform.apply(s[@range.first..@range.last + offset]) 
-            s[@range.first..@range.last + offset] = transform
-        end
-        return (transform.size - range.size)
+        # This was an optimization gone wrong. Sorry. Applies the transformation to the portion of the text.
+        return (s[@range.first+pre..@range.last+offset] = @transform.apply(s[@range.first+pre..@range.last+offset])).size - range.size
     end
     def apply(str)
         s = str.dup
         apply_recur(s)
         return s
+    end
+    def +(text)
+        add(text.rule)
+        return text
     end
     def add(new_rule)
         intersection = range & new_rule.range
@@ -170,7 +174,7 @@ def rule(range, transform)
 end
 
 def print_rule rule, depth=0
-    puts ("--" * depth) + rule.name + ": " + (rule.range[0]..rule.range[-1]).to_s
+    puts ("--" * depth) + rule.transform.property[0] + ": " + (rule.range[0]..rule.range[-1]).to_s
     rule.children.each do |child|
         print_rule child, depth + 1
     end
@@ -221,14 +225,14 @@ end
 
 def wrap(context, target, number, tag)
     range = range_from_specification(context, target, number)
-    transform = Transform.new(:wrap, [tag, tag])
-    r = Rule.new(range, "w", transform)
+    transform = Transform.new(:wrap, [tag, "</"+tag.match(/<(\S*)(\s|>)/)[1]+">" ])
+    r = Rule.new(range, transform)
 end
 
 def replace(context, target, number, replacement)
     range = range_from_specification(context, target, number)
     transform = Transform.new(:replacement, replacement)
-    r = Rule.new(range, "w", transform)
+    r = Rule.new(range, transform)
 end
 
 class Text < String
@@ -236,10 +240,17 @@ class Text < String
     def apply
         @rule.apply(self)
     end
+    undef +
+    def +(new_rule)
+        @rule.add(new_rule)
+    end
+    def apply
+        @rule.apply(self)
+    end
 end
 
 def text(s)
-    r = Rule.new((0..s.size-1), Transform.new(:identity, nil))
+    r = Rule.new((0..s.size-1), Transform.new(:identity, ["id"]))
     t = Text.new(s)
     t.rule = r
     t
