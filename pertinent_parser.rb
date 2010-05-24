@@ -4,20 +4,6 @@ def offset_to_r(o)
     (o[0]..o[1]-1)
 end
 
-String.class_eval do
-    def replace_nth! srch, n, rpl=nil, &rplf
-        rest, right = "", self
-        (n-1).times do
-            part = right.partition(srch)
-            rest << part[0..1].join
-            right = part[2]
-        end
-        return replace(rest + right.sub(srch, rpl)) if rpl
-        return replace(rest + right.sub(srch, rplf[srch]))
-    end
-end
-
-
 def range_from_specification context, target, number
     count, position = 0, 0
     stored = []
@@ -29,15 +15,6 @@ def range_from_specification context, target, number
     end
 end
 
-def specification_from_range context, range
-    i = 0
-    target = context[range]
-    until range == range_from_specification(context, target, i)
-        i += 1
-    end
-    return [target, i]
-end
-
 class Hpricot::Elem
     def stag
         "<#{name}#{attributes_as_html}" +
@@ -45,7 +22,6 @@ class Hpricot::Elem
         ">"
     end
 end
-
 
 # Better write our own traversal function so that we can screw with the HTML representation the way we like.
 def extract(html)
@@ -67,7 +43,6 @@ end
 
 class Transform
     attr_accessor :type, :property
-    attr_accessor :transformed, :original
     def initialize type, property
         @type, @property = type, property
     end
@@ -91,8 +66,6 @@ end
 
 class Rule
     attr_accessor :name, :children, :parent
-    attr_accessor :target, :number
-    attr_accessor :context
     attr_accessor :transform
     attr_accessor :range
     def initialize(range, transform=nil, children=[], parent=nil)
