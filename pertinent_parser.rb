@@ -7,7 +7,8 @@ end
 def range_from_specification context, target, number
     count, position = 0, 0
     stored = []
-    while (match = context.match(target, position)) do
+    re = Regexp.new(Regexp.escape(target))
+    while (match = context.match(re , position)) do
         temp = match.offset 0
         position += 1; count += 1 if temp != stored
         return offset_to_r(temp) if count == number
@@ -148,7 +149,7 @@ def rule(range, transform)
     Rule.new(range, transform)
 end
 
-def wrap(context, target, number, tag)
+def new_wrap(context, target, number, tag)
     range = range_from_specification(context, target, number)
     wrap_(range, tag)
 end
@@ -158,7 +159,7 @@ def wrap_(range, tag)
     r = Rule.new(range, transform)
 end
 
-def replace(context, target, number, replacement)
+def new_replace(context, target, number, replacement)
     range = range_from_specification(context, target, number)
     transform = Transform.new(:replacement, replacement)
     r = Rule.new(range, transform)
@@ -175,6 +176,15 @@ class Text < String
     end
     def apply
         @rule.apply(self)
+    end
+    def wrap_in(tag, target, number=1)
+        self.+(new_wrap(self, target, number, tag))
+    end
+    def replace(replacement, target, number=1)
+        self.+(new_replace(self, target, number, replacement))
+    end
+    def wrap_out(tag, target, number=1)
+        new_wrap(self, target, number, tag).+(self)
     end
 end
 
