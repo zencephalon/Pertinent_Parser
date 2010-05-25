@@ -24,7 +24,7 @@ class Hpricot::Elem
 end
 
 # Better write our own traversal function so that we can screw with the HTML representation the way we like.
-def extract(html)
+def html(html)
     doc = Hpricot(html)
     d = 0
     t = text(doc.inner_text)
