@@ -17,21 +17,21 @@ PertinentParser applies HTML markup to text. It will break tags across existing 
   #=> "A <i>sentence with</i> some markup."
   h.wrap_in("<b>", "with some")
   h.apply
-  #=> "A <i>sentence <b>with</b></em><b> some</b> markup."
+  #=> "A <i>sentence <b>with</b></i><b> some</b> markup."
 
 Breaking existing tags across new boundaries using `wrap_out`.
 
   h = html("A <i>sentence with</i> some markup.")
   h.wrap_out("<b>", "with some")
   h.apply
-  #=> "A <em>sentence </em><b><em>with</em> some</b> markup."
+  #=> "A <i>sentence </i><b><i>with</i> some</b> markup."
 
 Using the replace operator.
 
-  h = html("A <em>sentence with</em> some markup.")
+  h = html("A <i>sentence with</i> some markup.")
   h.replace("haha totally", "with some")
   h.apply
-  #=> "A <em>sentence haha</em> totally markup."
+  #=> "A <i>sentence haha</i> totally markup."
 
 === Combining with TactfulTokenizer to markup sentences in HTML
 
@@ -42,7 +42,7 @@ annotations denoting the occurences of sentences.
   require "tactful_tokenizer"
   
   m = TactfulTokenizer::Model.new; nil
-  h = html("Here in the U.S. Senate we prefer to eat our friends. Is it easier that way? <em>Yes.</em> <em>Maybe</em>!")
+  h = html("Here in the U.S. Senate we prefer to eat our friends. Is it easier that way? <i>Yes.</i> <i>Maybe</i>!")
   # TactfulTokenizer plays best with text without HTML, which PertinentParser conveniently handles.
   sentences = m.tokenize_text(h)
   #=> ["Here in the U.S. Senate we prefer to eat our friends.", "Is it easier that way?", "Yes.", "Maybe!"]
@@ -50,7 +50,7 @@ annotations denoting the occurences of sentences.
       h.wrap_out("<div class='sentence' id='#{i+1}'>", sentence)
   end
   h.apply
-  #=> "<div class='sentence' id='1'>Here in the U.S. Senate we prefer to eat our friends.</div> <div class='sentence' id='2'>Is it easier that way?</div> <div class='sentence' id='3'><em>Yes.</em></div> <div class='sentence' id='4'><em>Maybe</em>!</div>"
+  #=> "<div class='sentence' id='1'>Here in the U.S. Senate we prefer to eat our friends.</div> <div class='sentence' id='2'>Is it easier that way?</div> <div class='sentence' id='3'><i>Yes.</i></div> <div class='sentence' id='4'><i>Maybe</i>!</div>"
  
 == Installation
   gem install hpricot
