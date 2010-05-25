@@ -1,0 +1,64 @@
+= PertinentParser
+
+PertinentParser is a library for text transformation combination.
+It is of particular use when dealing with HTML. For the time being,
+it is incomplete.
+
+Basically, PertinentParser describes a set of rules for the composition of text transformations.
+
+== Usage
+
+PertinentParser applies HTML markup to text. It will break tags across existing tag boundaries if you use `wrap_in`.
+
+  require "pertinent_parser"
+  h = html("A <i>sentence with</i> some markup.")
+  #=> "A sentence with some markup."
+  h.apply
+  #=> "A <i>sentence with</i> some markup."
+  h.wrap_in("<b>", "with some")
+  h.apply
+  #=> "A <i>sentence <b>with</b></em><b> some</b> markup."
+
+Breaking existing tags across new boundaries using `wrap_out`.
+
+  h = html("A <i>sentence with</i> some markup.")
+  h.wrap_out("<b>", "with some")
+  h.apply
+  #=> "A <em>sentence </em><b><em>with</em> some</b> markup."
+
+Using the replace operator.
+
+  h = html("A <em>sentence with</em> some markup.")
+  h.replace("haha totally", "with some")
+  h.apply
+  #=> "A <em>sentence haha</em> totally markup."
+
+=== Combining with TactfulTokenizer to markup sentences in HTML
+
+Say you were to generate from HTML using Markdown, and then you want to add
+annotations denoting the occurences of sentences.
+
+  require "pertinent_parser"
+  require "tactful_tokenizer"
+  
+  m = TactfulTokenizer::Model.new; nil
+  h = html("Here in the U.S. Senate we prefer to eat our friends. Is it easier that way? <em>Yes.</em> <em>Maybe</em>!")
+  # TactfulTokenizer plays best with text without HTML, which PertinentParser conveniently handles.
+  sentences = m.tokenize_text(h)
+  #=> ["Here in the U.S. Senate we prefer to eat our friends.", "Is it easier that way?", "Yes.", "Maybe!"]
+  sentences.each_with_index do |sentence, i|
+      h.wrap_out("<div class='sentence' id='#{i+1}'>", sentence)
+  end
+  h.apply
+  #=> "<div class='sentence' id='1'>Here in the U.S. Senate we prefer to eat our friends.</div> <div class='sentence' id='2'>Is it easier that way?</div> <div class='sentence' id='3'><em>Yes.</em></div> <div class='sentence' id='4'><em>Maybe</em>!</div>"
+ 
+== Installation
+  gem install hpricot
+  gem install pertinent_parser
+
+The gem isn't up yet, but I'll have it up in a bit. 
+
+== Author
+
+Copyright (c) 2010 Matthew Bunday. All rights reserved.
+Released under the MIT/X11 license.
