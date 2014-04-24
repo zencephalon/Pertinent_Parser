@@ -1,25 +1,64 @@
-PertinentParser is a Ruby library for parsing and text transformations.
+= PertinentParser
 
-Example usage:
+PertinentParser is a library for text transformation combination.
+It is of particular use when dealing with HTML. For the time being,
+it is incomplete.
+
+Basically, PertinentParser describes a set of rules for the composition of text transformations.
+
+== Usage
+
+PertinentParser applies HTML markup to text. It will break tags across existing tag boundaries if you use `wrap_in`.
 
   require "pertinent_parser"
-  t = PertinentParser::html("<p>Hanlon's Razor: <i><em>never</em> attribute
-  to malice that which can be adequately explained by stupidity</i>. Occam's 
-  Razor: <i>entia non sunt multiplicanda praeter necessitatem</i>.</p>")
-  t.text #=> "Hanlon's Razor: never attribute to malice that which can be 
-  adequately explained by stupidity. Occam's Razor: entia non sunt 
-  multiplicanda praeter necessitatem."
-  t.add("never attribute to malice that which can be adequately explained 
-  by stupidity.", "<q>") #=> true
-  t.add("entia non sunt multiplicanda praeter necessitatem.", "<q>") #=> true
-  t.add("War doesn't determine who is right, but rather who is wrong.", "<q>") #=> false
-  t.apply #=> "<p>Hanlon's Razor: <q><i><em>never</em> attribute to malice
-  that which can be adequately explained by stupidity</i>.</q> Occam's Razor:
-  <q><i>entia non sunt multiplicanda praeter necessitatem</i>.</q></p>"
-  t.add("Hanlon") {"Cynic"} #=> true
-  t.add("never") {"always"} #=> true
-  t.apply #=> "<p>Cynic's Razor: <q><i><em>always</em> attribute to malice that
-  which can be adequately explained by stupidity</i>.</q> Occam's Razor: <i>entia
-  non sunt multiplicanda praeter necessitatem</i></q></p>"
+  h = html("A <i>sentence with</i> some markup.")
+  #=> "A sentence with some markup."
+  h.apply
+  #=> "A <i>sentence with</i> some markup."
+  h.wrap_in("<b>", "with some")
+  h.apply
+  #=> "A <i>sentence <b>with</b></i><b> some</b> markup."
 
+Breaking existing tags across new boundaries using `wrap_out`.
 
+  h = html("A <i>sentence with</i> some markup.")
+  h.wrap_out("<b>", "with some")
+  h.apply
+  #=> "A <i>sentence </i><b><i>with</i> some</b> markup."
+
+Using the replace operator.
+
+  h = html("A <i>sentence with</i> some markup.")
+  h.replace("haha totally", "with some")
+  h.apply
+  #=> "A <i>sentence haha</i> totally markup."
+
+=== Combining with TactfulTokenizer to markup sentences in HTML
+
+Say you were to generate from HTML using Markdown, and then you want to add
+annotations denoting the occurences of sentences.
+
+  require "pertinent_parser"
+  require "tactful_tokenizer"
+  
+  m = TactfulTokenizer::Model.new; nil
+  h = html("Here in the U.S. Senate we prefer to eat our friends. Is it easier that way? <i>Yes.</i> <i>Maybe</i>!")
+  # TactfulTokenizer plays best with text without HTML, which PertinentParser conveniently handles.
+  sentences = m.tokenize_text(h)
+  #=> ["Here in the U.S. Senate we prefer to eat our friends.", "Is it easier that way?", "Yes.", "Maybe!"]
+  sentences.each_with_index do |sentence, i|
+      h.wrap_out("<div class='sentence' id='#{i+1}'>", sentence)
+  end
+  h.apply
+  #=> "<div class='sentence' id='1'>Here in the U.S. Senate we prefer to eat our friends.</div> <div class='sentence' id='2'>Is it easier that way?</div> <div class='sentence' id='3'><i>Yes.</i></div> <div class='sentence' id='4'><i>Maybe</i>!</div>"
+ 
+== Installation
+  gem install hpricot
+  gem install pertinent_parser
+
+The gem isn't up yet, but I'll have it up in a bit. 
+
+== Author
+
+Copyright (c) 2010 Matthew Bunday. All rights reserved.
+Released under the MIT/X11 license.
