@@ -3,7 +3,6 @@ require "pertinent_parser/transform"
 require "pertinent_parser/rule"
 require "pertinent_parser/text"
 
-
 class Hpricot::Elem
     def stag
         "<#{name}#{attributes_as_html}" +
@@ -59,27 +58,21 @@ module PertinentParser
       range = range_from_specification(context, target, number)
       wrap_(range, tag)
     end
+
+    def rule(range, transform)
+      Rule.new(range, transform)
+    end
+
+
+    def wrap_(range, tag)
+      transform = Transform.new(:wrap, [tag, "</"+tag.match(/<(\S*)(\s|>)/)[1]+">" ])
+      r = Rule.new(range, transform)
+    end
+
+    def new_replace(context, target, number, replacement)
+      range = range_from_specification(context, target, number)
+      transform = Transform.new(:replacement, replacement)
+      r = Rule.new(range, transform)
+    end
   end
 end
-
-
-
-
-def rule(range, transform)
-    Rule.new(range, transform)
-end
-
-
-def wrap_(range, tag)
-    transform = Transform.new(:wrap, [tag, "</"+tag.match(/<(\S*)(\s|>)/)[1]+">" ])
-    r = Rule.new(range, transform)
-end
-
-def new_replace(context, target, number, replacement)
-    range = range_from_specification(context, target, number)
-    transform = Transform.new(:replacement, replacement)
-    r = Rule.new(range, transform)
-end
-
-
-
