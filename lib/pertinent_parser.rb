@@ -1,22 +1,8 @@
 require "hpricot"
 require "pertinent_parser/transform"
 require "pertinent_parser/rule"
+require "pertinent_parser/text"
 
-def offset_to_r(o)
-    (o[0]..o[1]-1)
-end
-
-def range_from_specification context, target, number
-    count, position = 0, 0
-    stored = []
-    re = Regexp.new(Regexp.escape(target))
-    while (match = context.match(re , position)) do
-        temp = match.offset 0
-        position += 1; count += 1 if temp != stored
-        return offset_to_r(temp) if count == number
-        stored = temp
-    end
-end
 
 class Hpricot::Elem
     def stag
@@ -52,6 +38,27 @@ module PertinentParser
       t.rule = r
       t
     end
+
+    def offset_to_r(o)
+      (o[0]..o[1]-1)
+    end
+
+    def range_from_specification context, target, number
+      count, position = 0, 0
+      stored = []
+      re = Regexp.new(Regexp.escape(target))
+      while (match = context.match(re , position)) do
+        temp = match.offset 0
+        position += 1; count += 1 if temp != stored
+        return offset_to_r(temp) if count == number
+        stored = temp
+      end
+    end
+
+    def new_wrap(context, target, number, tag)
+      range = range_from_specification(context, target, number)
+      wrap_(range, tag)
+    end
   end
 end
 
@@ -62,10 +69,6 @@ def rule(range, transform)
     Rule.new(range, transform)
 end
 
-def new_wrap(context, target, number, tag)
-    range = range_from_specification(context, target, number)
-    wrap_(range, tag)
-end
 
 def wrap_(range, tag)
     transform = Transform.new(:wrap, [tag, "</"+tag.match(/<(\S*)(\s|>)/)[1]+">" ])
@@ -78,26 +81,5 @@ def new_replace(context, target, number, replacement)
     r = Rule.new(range, transform)
 end
 
-class Text < String
-    attr_accessor :rule
-    def apply
-        @rule.apply(self)
-    end
-    undef +
-    def +(new_rule)
-        @rule.add(new_rule)
-    end
-    def apply
-        @rule.apply(self)
-    end
-    def wrap_in(tag, target, number=1)
-        self.+(new_wrap(self, target, number, tag))
-    end
-    def replace(replacement, target, number=1)
-        self.+(new_replace(self, target, number, replacement))
-    end
-    def wrap_out(tag, target, number=1)
-        new_wrap(self, target, number, tag).+(self)
-    end
-end
+
 
