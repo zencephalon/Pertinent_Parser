@@ -1,4 +1,5 @@
 require "hpricot"
+require "pertinent_parser/transform"
 
 def offset_to_r(o)
     (o[0]..o[1]-1)
@@ -24,46 +25,36 @@ class Hpricot::Elem
     end
 end
 
-# Better write our own traversal function so that we can screw with the HTML representation the way we like.
-def html(html)
-    doc = Hpricot(html)
-    d = 0
-    t = text(doc.inner_text)
-    doc.traverse_all_element do |elem|
+module PertinentParser
+  class << self
+    # Better write our own traversal function so that we can screw with the HTML representation the way we like.
+    def html(html)
+      doc = Hpricot(html)
+      d = 0
+      t = text(doc.inner_text)
+      doc.traverse_all_element do |elem|
         if elem.text?
-            #puts elem.inner_text
-            d += elem.inner_text.size
+          #puts elem.inner_text
+          d += elem.inner_text.size
         else
-            #puts elem.stag
-            t + wrap_(d...d+elem.inner_text.size, elem.stag)
-            #puts "#{d}..#{d+elem.inner_text.size}"
+          #puts elem.stag
+          t + wrap_(d...d+elem.inner_text.size, elem.stag)
+          #puts "#{d}..#{d+elem.inner_text.size}"
         end
+      end
+      t
     end
-    t
+
+    def text(s)
+      r = Rule.new((0..s.size-1), Transform.new(:identity, ["id"]))
+      t = Text.new(s)
+      t.rule = r
+      t
+    end
+  end
 end
 
-class Transform
-    attr_accessor :type, :property
-    def initialize type, property
-        @type, @property = type, property
-    end
-    def split(n)
-        if @type == :replacement
-            return [Transform.new(:replacement, @property[0..n-1]), Transform.new(:replacement, @property[n..-1])]
-        elsif @type == :wrap
-            return [self, self.dup]
-        end
-    end
-    def apply(s)
-        if @type == :identity
-            return s
-        elsif @type == :replacement
-            return @property
-        elsif @type == :wrap
-            return @property[0] + s + @property[1]
-        end
-    end
-end
+
 
 class Rule
     attr_accessor :name, :children, :parent
@@ -188,9 +179,3 @@ class Text < String
     end
 end
 
-def text(s)
-    r = Rule.new((0..s.size-1), Transform.new(:identity, ["id"]))
-    t = Text.new(s)
-    t.rule = r
-    t
-end

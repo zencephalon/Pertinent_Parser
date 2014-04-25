@@ -6,7 +6,7 @@ Gem::Specification.new do |s|
   s.description = 'PertinentParser helps you compose HTML tags across existing tag boundaries.'
   s.authors = ["Matthew Bunday"]
   s.email = "mkbunday@gmail.com"
-  s.files = "lib/pertinent_parser.rb"
+  s.files = ["lib/pertinent_parser.rb", "lib/pertinent_parser/transform.rb"]
   s.homepage = 'https://github.com/zencephalon/Pertinent_Parser'
   s.license = 'MIT'
 end
