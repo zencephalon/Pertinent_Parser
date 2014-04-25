@@ -10,4 +10,5 @@ Gem::Specification.new do |s|
              "lib/pertinent_parser/rule.rb", "lib/pertinent_parser/text.rb"]
   s.homepage = 'https://github.com/zencephalon/Pertinent_Parser'
   s.license = 'MIT'
+  s.add_runtime_dependency "hpricot", ["= 0.8.6"]
 end
