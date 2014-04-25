@@ -4,11 +4,11 @@ require "pertinent_parser/rule"
 require "pertinent_parser/text"
 
 class Hpricot::Elem
-    def stag
-        "<#{name}#{attributes_as_html}" +
-        ((empty? and not etag) ? " /" : "") +
-        ">"
-    end
+  def stag
+    "<#{name}#{attributes_as_html}" +
+      ((empty? and not etag) ? " /" : "") +
+      ">"
+  end
 end
 
 module PertinentParser
