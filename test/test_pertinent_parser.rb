@@ -18,4 +18,16 @@ class PertinentParserTest < MiniTest::Test
     h.wrap_in("<b>", "with some")
     assert_equal("A <i>sentence <b>with</b></i><b> some</b> markup.", h.apply)
   end
+
+  def test_basic_wrap_out
+    h = PertinentParser.html("A sentence with no markup.")
+    h.wrap_out("<b>", "with no")
+    assert_equal("A sentence <b>with no</b> markup.", h.apply)
+  end
+
+  def test_wrap_out_across_boundary
+    h = PertinentParser.html("A <i>sentence with</i> some markup.")
+    h.wrap_out("<b>", "with some")
+    assert_equal("A <i>sentence </i><b><i>with</i> some</b> markup.", h.apply)
+  end
 end
