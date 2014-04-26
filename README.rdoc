@@ -11,7 +11,7 @@ Basically, PertinentParser describes a set of rules for the composition of text 
 PertinentParser applies HTML markup to text. It will break tags across existing tag boundaries if you use `wrap_in`.
 
   require "pertinent_parser"
-  h = html("A <i>sentence with</i> some markup.")
+  h = PertinentParser::html("A <i>sentence with</i> some markup.")
   #=> "A sentence with some markup."
   h.apply
   #=> "A <i>sentence with</i> some markup."
@@ -21,14 +21,14 @@ PertinentParser applies HTML markup to text. It will break tags across existing 
 
 Breaking existing tags across new boundaries using `wrap_out`.
 
-  h = html("A <i>sentence with</i> some markup.")
+  h = PertinentParser::html("A <i>sentence with</i> some markup.")
   h.wrap_out("<b>", "with some")
   h.apply
   #=> "A <i>sentence </i><b><i>with</i> some</b> markup."
 
 Using the replace operator.
 
-  h = html("A <i>sentence with</i> some markup.")
+  h = PertinentParser::html("A <i>sentence with</i> some markup.")
   h.replace("haha totally", "with some")
   h.apply
   #=> "A <i>sentence haha</i> totally markup."
@@ -42,7 +42,7 @@ annotations denoting the occurences of sentences.
   require "tactful_tokenizer"
   
   m = TactfulTokenizer::Model.new; nil
-  h = html("Here in the U.S. Senate we prefer to eat our friends. Is it easier that way? <i>Yes.</i> <i>Maybe</i>!")
+  h = PertinentParser::html("Here in the U.S. Senate we prefer to eat our friends. Is it easier that way? <i>Yes.</i> <i>Maybe</i>!")
   # TactfulTokenizer plays best with text without HTML, which PertinentParser conveniently handles.
   sentences = m.tokenize_text(h)
   #=> ["Here in the U.S. Senate we prefer to eat our friends.", "Is it easier that way?", "Yes.", "Maybe!"]
@@ -53,12 +53,10 @@ annotations denoting the occurences of sentences.
   #=> "<div class='sentence' id='1'>Here in the U.S. Senate we prefer to eat our friends.</div> <div class='sentence' id='2'>Is it easier that way?</div> <div class='sentence' id='3'><i>Yes.</i></div> <div class='sentence' id='4'><i>Maybe</i>!</div>"
  
 == Installation
-  gem install hpricot
   gem install pertinent_parser
 
-The gem isn't up yet, but I'll have it up in a bit. 
 
 == Author
 
-Copyright (c) 2010 Matthew Bunday. All rights reserved.
+Copyright (c) 2014 Matthew Bunday. All rights reserved.
 Released under the MIT/X11 license.
